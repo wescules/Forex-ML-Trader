@@ -7,8 +7,8 @@ from pandas.plotting import autocorrelation_plot
 
 from sklearn import ensemble, tree
 
-from keras.models import Sequential
-from keras.layers import LSTM, Dense
+from keras import Sequential
+from keras._tf_keras.keras.layers import LSTM, Dense
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, normalize
@@ -20,10 +20,11 @@ from sklearn.ensemble import (AdaBoostRegressor, BaggingRegressor,
                               RandomForestRegressor)
 
 import tensorflow as tf
+import joblib
 
 import matplotlib.pyplot as plt
 
-file = 'history/AUD_CAD_H1.csv'
+file = 'history/EUR_CAD_M5.csv'
 folder = 'history/'
 
 
@@ -280,6 +281,8 @@ def plot_LinearRegression(file, o=5, split=0.6):
 
     model = LinearRegression()
     model.fit(X_train, y_train)
+    joblib.dump(model, "lin_reg_ml_model.pkl")
+
     predictions = model.predict(X_test)
     score = model.score(X_test, y_test)
     print("Model score: ", score)
@@ -319,10 +322,15 @@ def AdaBoost(file):
     return prediction
 
 
-AdaBoost(file)
 
-# plot_LinearRegression(file)
 
-# tf_nn_research(file)
+if __name__ == "__main__":
+    # AdaBoost(file)
 
-# ensemble_research(file)
+    plot_LinearRegression(file)
+
+    # tf_nn_research(file)
+
+    # ensemble_research(file)
+
+    # LSTMulti_research(file)

@@ -1,230 +1,540 @@
-import backtrader as bt
+# import numpy as np
+# import pandas as pd
+# # import yfinance as yf
+# from matplotlib import pyplot as plt
+# import backtrader as bt
+# import backtrader.feeds as btfeeds
+# import collections
+# import joblib
+# import backtrader.indicators as btind
+
+
+# from keras.models import Sequential
+# from keras.layers import Dense, LSTM, Dropout
+# from sklearn.preprocessing import MinMaxScaler
+
+# MAINSIGNALS = collections.OrderedDict(
+#     (('longshort', bt.SIGNAL_LONGSHORT),
+#      ('longonly', bt.SIGNAL_LONG),
+#      ('shortonly', bt.SIGNAL_SHORT),)
+# )
+
+
+# EXITSIGNALS = {
+#     'longexit': bt.SIGNAL_LONGEXIT,
+#     'shortexit': bt.SIGNAL_LONGEXIT,
+# }
+
+
+# class Strategy(bt.Strategy):
+#     def log(self, txt, dt=None):
+#         ''' Logging function fot this strategy'''
+#         dt = dt or self.datas[0].datetime.date(0)
+#         print('%s, %s' % (dt.isoformat(), txt))
+
+#     def __init__(self):
+#         # Keep a reference to the "close" line in the data[0] dataseries
+#         self.dataclose = self.datas[0].close
+
+#     def next(self):
+#         # Simply log the closing price of the series from the reference
+#         self.log('Close, %.2f' % self.dataclose[0])
+
+#         if self.dataclose[0] < self.dataclose[-1]:
+#             # current close less than previous close
+
+#             if self.dataclose[-1] < self.dataclose[-2]:
+#                 # previous close less than the previous close
+
+#                 # BUY, BUY, BUY!!! (with all possible default parameters)
+#                 self.log('BUY CREATE, %.2f' % self.dataclose[0])
+#                 self.buy()
+
+# class PerformanceAnalyzer(bt.Analyzer):
+#     def __init__(self):
+#         self.returns = []
+#         self.win_trades = 0
+#         self.loss_trades = 0
+#         self.total_profit = 0
+#         self.total_loss = 0
+
+#     def notify_trade(self, trade):
+#         if trade.isclosed:  # Only consider fully closed trades
+#             pnl = trade.pnl  # Profit and loss from the trade
+#             self.returns.append(pnl)
+#             if pnl > 0:
+#                 self.win_trades += 1
+#                 self.total_profit += pnl
+#             else:
+#                 self.loss_trades += 1
+#                 self.total_loss += abs(pnl)
+
+#     def get_analysis(self):
+#         total_trades = self.win_trades + self.loss_trades
+#         win_rate = (self.win_trades / total_trades * 100) if total_trades > 0 else 0
+#         profit_factor = (self.total_profit / self.total_loss) if self.total_loss > 0 else 0
+
+#         return {
+#             'Total Trades': total_trades,
+#             'Win Rate (%)': win_rate,
+#             'Profit Factor': profit_factor,
+#             'Total Profit': self.total_profit,
+#             'Total Loss': self.total_loss,
+#         }
+#     def notify_order(self, order):
+#         if order.status in [order.Completed]:
+#             if order.isbuy():
+#                 print(f"BUY EXECUTED: Price={order.executed.price:.2f}, Size={order.executed.size}")
+#             elif order.issell():
+#                 print(f"SELL EXECUTED: Price={order.executed.price:.2f}, Size={order.executed.size}")
+#         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+#             print("Order Canceled/Margin/Rejected")
+
+# MAINSIGNALS = collections.OrderedDict(
+#     (('longshort', bt.SIGNAL_LONGSHORT),
+#      ('longonly', bt.SIGNAL_LONG),
+#      ('shortonly', bt.SIGNAL_SHORT),)
+# )
+
+
+# EXITSIGNALS = {
+#     'longexit': bt.SIGNAL_LONGEXIT,
+#     'shortexit': bt.SIGNAL_LONGEXIT,
+# }
+
+
+# class SMACloseSignal(bt.Indicator):
+#     lines = ('signal',)
+#     params = (('period', 30),)
+
+#     def __init__(self):
+#         self.lines.signal = self.data - bt.indicators.SMA(period=self.p.period)
+
+
+# class SMAExitSignal(bt.Indicator):
+#     lines = ('signal',)
+#     params = (('p1', 5), ('p2', 30),)
+
+#     def __init__(self):
+#         sma1 = bt.indicators.SMA(period=self.p.p1)
+#         sma2 = bt.indicators.SMA(period=self.p.p2)
+#         self.lines.signal = sma1 - sma2
+
+# # def backtest(stock):
+# #     cerebro = bt.Cerebro()
+# #     # cerebro.addstrategy(Strategy)
+# #     cerebro.broker.setcash(100000.0)
+# #     # price_data = yf.Ticker(stock).history(period="5d", interval="1m")
+# #     # price_data.index = pd.to_datetime(price_data.index)
+# #     price_data = pd.read_csv('history/EUR_CAD_M30.csv', index_col=0, header=0, parse_dates=True)
+# #     price_data.rename(columns={'time': 'datetime', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'}, inplace=True)
+    
+# #     price_data = price_data.iloc[:, :5]
+# #     data = bt.feeds.PandasData(dataname=price_data)
+# #     cerebro.adddata(data)
+    
+# #     cerebro.add_signal(bt.SIGNAL_LONGSHORT,
+# #                        SMACloseSignal, period=30)
+
+# #     cerebro.add_signal(bt.SIGNAL_LONGSHORT,
+# #                            SMAExitSignal,
+# #                            p1=5,
+# #                            p2=30)
+    
+# #     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Days, annualize=True)
+# #     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+# #     cerebro.addanalyzer(PerformanceAnalyzer, _name="performance")
+# #     print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
+# #     results = cerebro.run()
+# #     print(f'Final Portfolio Value: {cerebro.broker.getvalue()}')
+# #     performance = results[0].analyzers.performance.get_analysis()
+# #     print(performance)
+# #     print("Analysis:")
+# #     for i in performance:
+# #         print(f"{i}: {performance[i]}")
+# #     cerebro.plot()
+    
+    
+    
+# class HoldPositionStrategy(bt.Strategy):
+#     params = (("take_profit", 0.02),  # 2% take profit
+#               ("stop_loss", 0.01))   # 1% stop loss
+
+#     def __init__(self):
+
+#         self.position_price = None  # Track the entry price
+#         self.trade_open = False     # Flag to track if a position is active
+        
+#         # Load the pre-trained ML model
+#         self.model = joblib.load("lin_reg_ml_model.pkl")
+
+
+#     def next(self):
+#         # Get the current closing price
+#         current_price = self.data.close[0]
+
+#         # Gather features for the current bar
+#         features = [
+#             x for x in [
+#                 self.data._dataname['open'].iloc[0],
+#                 # self.data._dataname['high'].iloc[0],
+#                 # self.data._dataname['low'].iloc[0],
+#                 # self.data._dataname['volume'].iloc[0],
+#                 # self.data._dataname['ema_20'].iloc[0],
+#                 # self.data._dataname['ema_50'].iloc[0],
+#                 # self.data._dataname['ema_200'].iloc[0],
+#                 # self.data._dataname['rsi'].iloc[0],
+#                 # self.data._dataname['MACD_6_13_5'].iloc[0],
+#                 # self.data._dataname['MACDh_6_13_5'].iloc[0],
+#                 # self.data._dataname['MACDs_6_13_5'].iloc[0],
+#                 # self.data._dataname['BBL_20_2.0'].iloc[0],
+#                 # self.data._dataname['BBM_20_2.0'].iloc[0],
+#                 # self.data._dataname['BBU_20_2.0'].iloc[0],
+#                 # self.data._dataname['BBB_20_2.0'].iloc[0],
+#                 # self.data._dataname['BBP_20_2.0'].iloc[0],
+#                 # self.data._dataname['atr'].iloc[0],
+#                 # self.data._dataname['obv'].iloc[0],
+#                 # self.data._dataname['PP'].iloc[0],
+#                 # self.data._dataname['R1'].iloc[0],
+#                 # self.data._dataname['R2'].iloc[0],
+#                 # self.data._dataname['R3'].iloc[0],
+#                 # self.data._dataname['S1'].iloc[0],
+#                 # self.data._dataname['S2'].iloc[0],
+#                 # self.data._dataname['S3'].iloc[0]
+#             ] if not np.isnan(x)
+
+#         ]
+
+
+        
+#         if not self.trade_open:
+#             # Generate signals (you can use your ML prediction or other logic)
+#             predicted_close = self.model.predict([features])[0][0] * 15
+#             print(predicted_close)
+#             print(current_price)
+#             if predicted_close > current_price * 1.01:  # Long signal
+#                 self.buy(size=100)
+#                 self.position_price = current_price
+#                 self.trade_open = True
+#             elif predicted_close < current_price * 0.99:  # Short signal
+#                 self.sell(size=100)
+#                 self.position_price = current_price
+#                 self.trade_open = True
+#         else:
+#             # Evaluate exit conditions
+#             if self.position.size > 0:  # Long position
+#                 if current_price >= self.position_price * (1 + self.params.take_profit):
+#                     self.close()  # Take profit
+#                     print("taking profit")
+#                     self.trade_open = False
+#                 elif current_price <= self.position_price * (1 - self.params.stop_loss):
+#                     self.close()  # Stop loss
+#                     print("stoploss hit")
+#                     self.trade_open = False
+#             elif self.position.size < 0:  # Short position
+#                 if current_price <= self.position_price * (1 - self.params.take_profit):
+#                     self.close()  # Take profit
+#                     print("taking profit on short")
+#                     self.trade_open = False
+#                 elif current_price >= self.position_price * (1 + self.params.stop_loss):
+#                     self.close()  # Stop loss
+#                     print("stoploss hit on short")
+#                     self.trade_open = False
+
+# class MLStrategy(bt.Strategy):
+#     def __init__(self):
+#         self.movav = btind.MovingAverageSimple(self.data.close, period=30)
+        
+#         # Load the pre-trained ML model
+#         self.model = joblib.load("lin_reg_ml_model.pkl")
+
+#     def next(self):
+#         # Gather features for the current bar
+#         features = [
+#             self.movav[0],  # RSI value
+#         ]
+        
+#         # Ensure no NaN values (early bars may have missing data)
+#         if None in features or any(np.isnan(features)):
+#             return
+        
+#         # Get the current closing price
+#         current_close = self.data.close[0]
+
+#         # Predict using the ML model
+#         predicted_close = self.model.predict([features])[0][0]  # Output: 1 (buy), -1 (sell), 0 (hold)
+
+#         # Generate signals based on the prediction
+#         if predicted_close > current_close * 1.005:  # Buy if predicted close is 1% higher
+#             self.buy(size=1)
+#             print(f"Buy signal: Predicted = {predicted_close}, Current = {current_close}")
+#         elif predicted_close < current_close * 0.995:  # Sell if predicted close is 1% lower
+#             self.sell(size=1)
+#             print(f"Sell signal: Predicted = {predicted_close}, Current = {current_close}")
+#         else:
+#             print(f"Hold: Predicted = {predicted_close}, Current = {current_close}")
+
+# # 创建策略继承bt.Strategy
+# class BiggerThanEmaStrategy(bt.Strategy):
+#     params = (
+#         # 均线参数设置15天，15日均线
+#         ("maperiod", 15),
+#     )
+
+#     def log(self, txt, dt=None):
+#         # 记录策略的执行日志
+#         dt = dt or self.datas[0].datetime.date(0)
+#         print("%s, %s" % (dt.isoformat(), txt))
+
+#     def __init__(self):
+#         # 保存收盘价的引用
+#         self.dataclose = self.datas[0].close
+#         # 跟踪挂单
+#         self.order = None
+#         # 买入价格和手续费
+#         self.buyprice = None
+#         self.buycomm = None
+#         # 加入指标
+#         # Add a MovingAverageSimple indicator
+#         self.sma = bt.indicators.SimpleMovingAverage(
+#             self.datas[0], period=self.params.maperiod
+#         )
+#         # Indicators for the plotting show
+#         bt.indicators.ExponentialMovingAverage(self.datas[0], period=25)
+#         bt.indicators.WeightedMovingAverage(self.datas[0], period=25, subplot=True)
+#         bt.indicators.StochasticSlow(self.datas[0])
+#         bt.indicators.MACDHisto(self.datas[0])
+#         rsi = bt.indicators.RSI(self.datas[0])
+#         bt.indicators.SmoothedMovingAverage(rsi, period=10)
+#         bt.indicators.ATR(self.datas[0], plot=False)
+
+#     # 订单状态通知，买入卖出都是下单
+#     def notify_order(self, order):
+#         if order.status in [order.Submitted, order.Accepted]:
+#             # broker 提交/接受了，买/卖订单则什么都不做
+#             return
+#         # 检查一个订单是否完成
+#         # 注意: 当资金不足时，broker会拒绝订单
+#         if order.status in [order.Completed]:
+#             if order.isbuy():
+#                 self.log(
+#                     "Bought Price: %.2f, Fee: %.2f, Commission %.2f"
+#                     % (order.executed.price, order.executed.value, order.executed.comm)
+#                 )
+#                 self.buyprice = order.executed.price
+#                 self.buycomm = order.executed.comm
+#             elif order.issell():
+#                 self.log(
+#                     "Sell Price: %.2f, Fee: %.2f, Commission %.2f"
+#                     % (order.executed.price, order.executed.value, order.executed.comm)
+#                 )
+#             # 记录当前交易数量
+#             self.bar_executed = len(self)
+#         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+#             self.log("Order Cancellation/Insufficient Margin/Rejection")
+#         # 其他状态记录为：无挂起订单
+#         self.order = None
+
+#     # 交易状态通知，一买一卖算交易
+#     def notify_trade(self, trade):
+#         if not trade.isclosed:
+#             return
+#         self.log("Trading profit, gross profit %.2f, net profit %.2f" % (trade.pnl, trade.pnlcomm))
+
+#     def next(self):
+#         # 记录收盘价
+#         self.log("Close, %.2f" % self.dataclose[0])
+#         # 如果有订单正在挂起，不操作
+#         if self.order:
+#             return
+#         # 如果没有持仓则买入
+#         if not self.position:
+#             # 今天的收盘价在均线价格之上
+#             if self.dataclose[0] > self.sma[0]:
+#                 # 买入
+#                 self.log("Buy order %.2f" % self.dataclose[0])
+#                 # 跟踪订单避免重复
+#                 self.order = self.buy()
+#         else:
+#             # 如果已经持仓，收盘价在均线价格之下
+#             if self.dataclose[0] < self.sma[0]:
+#                 # 全部卖出
+#                 self.log("Sell Order %.2f" % self.dataclose[0])
+#                 # 跟踪订单避免重复
+#                 self.order = self.sell()
+
+# class LSTMPredict(bt.Strategy):
+#     params = (('period', 10), ('neurons', 50), ('train_size', 0.8), ('lookback', 20))
+
+#     def __init__(self):
+#         self.dataclose = self.datas[0].close
+#         self.scaler = MinMaxScaler(feature_range=(0, 1))
+#         self.lookback = self.p.lookback
+#         self.train_size = self.p.train_size
+#         self.train_data, self.test_data = self._prepare_data()
+#         # self.model = self._build_model()
+#         # self.model.fit(self.train_data['X'], self.train_data['Y'], epochs=10, batch_size=1, verbose=2)
+#         # joblib.dump(self.model, "LSTM_ml_model.pkl")
+#         self.model = joblib.load("LSTM_ml_model.pkl")
+
+#     def _prepare_data(self):
+#         data = np.array(self.dataclose)
+#         data = np.reshape(data, (-1, 1))
+#         data = self.scaler.fit_transform(data)
+#         train_size = int(len(data) * self.train_size)
+#         train_data = data[:train_size]
+#         test_data = data[train_size:]
+#         return {'X': self._prepare_X(train_data), 'Y': self._prepare_Y(train_data)}, {'X': self._prepare_X(test_data)}
+
+#     def _prepare_X(self, data):
+#         X, Y = [], []
+#         for i in range(self.lookback, len(data)):
+#             X.append(data[i - self.lookback:i, 0])
+#             Y.append(data[i, 0])
+#         X, Y = np.array(X), np.array(Y)
+#         X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+#         return X
+
+#     def _prepare_Y(self, data):
+#         Y = []
+#         for i in range(self.lookback, len(data)):
+#             Y.append(data[i, 0])
+#         Y = np.array(Y)
+#         Y = np.reshape(Y, (Y.shape[0], 1))
+#         return Y
+
+#     def _build_model(self):
+#         model = Sequential()
+#         model.add(LSTM(units=self.p.neurons, input_shape=(self.lookback, 1)))
+#         model.add(Dropout(0.2))
+#         model.add(Dense(units=1))
+#         model.compile(optimizer='Adagrad', loss='mean_squared_error')
+#         return model
+
+#     def next(self):
+#         if not self.position:
+#             X = self.test_data['X']
+#             X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+#             y_pred = self.model.predict(X)
+#             y_pred = self.scaler.inverse_transform(y_pred)
+#             print('%.5f -- %.5f ' % (self.dataclose[0], y_pred[-1]))
+#             if self.dataclose[0] < y_pred[-1]:
+#                 self.buy(size=100)
+#         else:
+#             if self.dataclose[0] > self.position.price:
+#                 self.sell(size=self.position.size)
+
+# def test():
+#     cerebro = bt.Cerebro()
+#     # cerebro.addstrategy(Strategy)
+#     cerebro.broker.setcash(100000.0)
+#     # price_data = yf.Ticker(stock).history(period="5d", interval="1m")
+#     # price_data.index = pd.to_datetime(price_data.index)
+#     price_data = pd.read_csv('history/EUR_CAD_H4.csv', index_col=0, header=0, parse_dates=True)
+#     # price_data.rename(columns={'time': 'datetime', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'}, inplace=True)
+    
+#     # price_data = price_data.iloc[:, :5]
+#     data = bt.feeds.PandasData(dataname=price_data)
+#     cerebro.adddata(data)
+#     cerebro.addstrategy(LSTMPredict)
+
+    
+    
+#     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+#     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+#     cerebro.addanalyzer(PerformanceAnalyzer, _name="performance")
+
+#     print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
+#     results = cerebro.run()
+#     print(f'Final Portfolio Value: {cerebro.broker.getvalue()}')
+#     performance = results[0].analyzers.performance.get_analysis()
+
+#     print(performance)
+#     print(results[0].analyzers.sharpe.get_analysis())
+
+#     print(results[0].analyzers.drawdown.get_analysis())
+#     print("Analysis:")
+#     for i in performance:
+#         print(f"{i}: {performance[i]}")
+#     cerebro.plot()
+    
+    
+# test()
+
+# # stock = "TSLA"
+
+
+# # backtest(stock)
+
+
+
+
 import pandas as pd
 import numpy as np
-from datetime import datetime
-import warnings
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import accuracy_score
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
 
-warnings.filterwarnings("ignore", category=FutureWarning, module="ta.trend")
+# Parameters
+atr_len = 10
+factor = 3
+training_data_period = 100
+highvol = 0.75
+midvol = 0.5
+lowvol = 0.25
 
-# Custom Analyzer for tracking performance and portfolio value
-class PerformanceAnalyzer(bt.Analyzer):
-    def __init__(self):
-        self.portfolio_values = []
-        self.pnl = []
+# Input data (replace with real OHLCV data)
+df = pd.read_csv("history/EUR_CAD_M30.csv", index_col=0)  # Example CSV for OHLC data with columns: ['open', 'high', 'low', 'close']
+df.rename(columns={'time': 'datetime', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'}, inplace=True)
 
-    def notify_trade(self, trade):
-        if trade.isclosed:
-            self.pnl.append(trade.pnl)
+df['hl2'] = (df['high'] + df['low']) / 2
 
-    def next(self):
-        # Track portfolio value at each step
-        self.portfolio_values.append(self.strategy.broker.get_value())
+# ATR Calculation
+df['tr'] = np.maximum(df['high'] - df['low'], 
+                      np.maximum(abs(df['high'] - df['close'].shift()), 
+                                 abs(df['low'] - df['close'].shift())))
+df['atr'] = df['tr'].rolling(window=atr_len).mean()
 
-    def get_analysis(self):
-        return {
-            'cumulative_pnl': sum(self.pnl),
-            'average_pnl': np.mean(self.pnl) if self.pnl else 0,
-            'max_pnl': max(self.pnl) if self.pnl else 0,
-            'min_pnl': min(self.pnl) if self.pnl else 0,
-            'portfolio_values': self.portfolio_values
-        }
+# Initial K-Means centroids (percentile guesses)
+volatility = df['atr']
+upper = volatility.rolling(training_data_period).max().fillna(method='bfill')
+lower = volatility.rolling(training_data_period).min().fillna(method='bfill')
+initial_centroids = [
+    lower + (upper - lower) * highvol,
+    lower + (upper - lower) * midvol,
+    lower + (upper - lower) * lowvol
+]
 
-# Define a custom indicator to track the target value for the AI strategy
-class TargetIndicator(bt.Indicator):
-    lines = ('target',)
+# K-Means Clustering
+training_data = volatility[-training_data_period:].dropna()
+kmeans = KMeans(n_clusters=3, init=np.array(initial_centroids).reshape(-1, 1), n_init=1)
+reshaped_data = training_data.values.reshape(-1, 1)
+print(reshaped_data)
+df.loc[-training_data_period:, 'cluster'] = kmeans.fit_predict(reshaped_data)
 
-    def __init__(self):
-        pass
+# Assign Centroids
+df['cluster_centroid'] = kmeans.cluster_centers_[df['cluster'].astype(int)]
 
-    def next(self):
-        # Target value for upward trend (1) or downward (0)
-        if self.data.close[0] > self.data.close[-1]:
-            self.lines.target[0] = 1
+# SuperTrend Calculation
+def calculate_supertrend(df, factor, atr_col='atr', hl2_col='hl2'):
+    df['upper_band'] = df[hl2_col] + factor * df[atr_col]
+    df['lower_band'] = df[hl2_col] - factor * df[atr_col]
+
+    df['supertrend'] = np.nan
+    df['direction'] = 1
+
+    for i in range(1, len(df)):
+        if df['close'].iloc[i] > df['supertrend'].iloc[i-1] or df['direction'].iloc[i-1] == 1:
+            df['supertrend'].iloc[i] = df['lower_band'].iloc[i]
+            df['direction'].iloc[i] = 1
         else:
-            self.lines.target[0] = 0
+            df['supertrend'].iloc[i] = df['upper_band'].iloc[i]
+            df['direction'].iloc[i] = -1
 
-# AI Reversal Strategy
-class AIReversalStrategy(bt.Strategy):
-    params = (
-        ('symbol', 'BTCUSD'),
-        ('interval', 5),  # Interval in minutes
-    )
+calculate_supertrend(df, factor, atr_col='cluster_centroid')
 
-    def __init__(self):
-        self.signals = None
-        self.order = None
-        self.buy_signal = None
-        self.sell_signal = None
-        self.buy_signals = []
-        self.sell_signals = []
-
-        # Initialize buy/sell signal prices to track executed prices
-        self.buy_signal_price = None
-        self.sell_signal_price = None
-
-        # Technical indicators
-        self.rsi = bt.indicators.RSI(self.data.close, period=14)
-        self.sma_10 = bt.indicators.SimpleMovingAverage(self.data.close, period=10)
-        self.sma_30 = bt.indicators.SimpleMovingAverage(self.data.close, period=30)
-        self.stoch_k = bt.indicators.StochasticSlow(self.data)
-        self.macd = bt.indicators.MACD(self.data.close)
-
-        # Custom target indicator (up/down trend)
-        self.target = TargetIndicator(self.data)
-
-        # Variables for machine learning
-        self.model = None
-        self.signals = None
-
-    def next(self):
-        current_time = datetime.now()
-        # if current_time.weekday() >= 5:  # Skip weekends
-        #     return
-
-        # if current_time.minute % self.params.interval == 0:
-        self.signals = self.run_ai_reversal_pipeline(self.data_raw)
-        self.execute_orders()
-
-        # Display target value
-        print(f"Target: {self.target.target[0]}")
-
-        # AI prediction logic
-        if self.model is not None:
-            features = self.prepare_features()
-            prediction = self.model.predict([features])
-            signal = 'Buy' if prediction == 1 else 'Sell'
-            print(f"AI Prediction: {signal}")
-
-            # Buy Signal
-            if signal == 'Buy' and not self.position:  # Buy only if no current position
-                print("Generating Buy signal...")
-                self.buy_signal_price = self.data.close[0]
-                self.order = self.buy()  # Execute buy order
-                print(f"Buy signal executed at price: {self.buy_signal_price}")
-                self.buy_signals.append((self.data.datetime.datetime(), self.data.close[0]))
-
-            # Sell Signal
-            elif signal == 'Sell' and self.position:  # Sell only if currently holding a position
-                print("Generating Sell signal...")
-                self.sell_signal_price = self.data.close[0]
-                self.order = self.sell()  # Execute sell order
-                print(f"Sell signal executed at price: {self.sell_signal_price}")
-                self.sell_signals.append((self.data.datetime.datetime(), self.data.close[0]))
-
-    def prepare_features(self):
-        # Convert Backtrader LineBuffer objects to Pandas Series for ML model prediction
-        close_series = pd.Series(self.data.close.get(size=len(self.data)), index=self.data.datetime.get(size=len(self.data)))
-        rsi_series = pd.Series(self.rsi.get(size=len(self.rsi)), index=self.data.datetime.get(size=len(self.rsi)))
-        sma_10_series = pd.Series(self.sma_10.get(size=len(self.sma_10)), index=self.data.datetime.get(size=len(self.sma_10)))
-        sma_30_series = pd.Series(self.sma_30.get(size=len(self.sma_30)), index=self.data.datetime.get(size=len(self.sma_30)))
-        stoch_k_series = pd.Series(self.stoch_k.get(size=len(self.stoch_k)), index=self.data.datetime.get(size=len(self.stoch_k)))
-        macd_series = pd.Series(self.macd.get(size=len(self.macd)), index=self.data.datetime.get(size(len(self.macd))))
-
-        # Prepare feature vector (ignoring NA values)
-        features = pd.DataFrame({
-            'rsi': rsi_series,
-            'sma_10': sma_10_series,
-            'sma_30': sma_30_series,
-            'stoch_k': stoch_k_series,
-            'macd': macd_series
-        }).dropna().iloc[-1].values  # Get the most recent row for prediction
-
-        return features
-
-    def run_ai_reversal_pipeline(self, data):
-        if len(data) == 0:
-            print("Error: DataFrame is empty. Skipping AI reversal pipeline.")
-            return None
-
-        print("Running AI reversal pipeline...")
-        prepared_data = self.prepare_data(data)
-
-        features, target = self.feature_engineering(prepared_data)
-        model = self.train_and_evaluate_model(features, target)
-        self.model = model
-        print("Model training completed.")
-
-        return prepared_data
-
-    def prepare_data(self, data):
-        close_series = pd.Series(data.close.get(size=len(data)), index=data.datetime.get(size(len(data))))
-        data['target'] = np.where(close_series.shift(-1) > close_series, 1, 0)
-        return data.dropna()
-
-    def feature_engineering(self, data):
-        features = data[['rsi', 'sma_10', 'sma_30', 'stoch_k', 'macd']]
-        target = data['target']
-        return features, target
-
-    def tune_model(self, features, target):
-        param_grid = {
-            'n_estimators': [50, 100, 200],
-            'max_depth': [None, 10, 20, 30],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 4]
-        }
-        rf = RandomForestClassifier(random_state=42)
-        grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=5, scoring='accuracy', n_jobs=-1)
-        grid_search.fit(features, target)
-        return grid_search.best_estimator_
-
-    def train_and_evaluate_model(self, features, target):
-        X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
-        model = self.tune_model(X_train, y_train)
-        y_pred = model.predict(X_test)
-        print(f'Model Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%')
-        return model
-
-    def notify_order(self, order):
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                print(f"BUY EXECUTED: Price = {order.executed.price}, Size = {order.executed.size}")
-            elif order.issell():
-                print(f"SELL EXECUTED: Price = {order.executed.price}, Size = {order.executed.size}")
-            self.order = None  # Reset the order variable
-
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            print("Order Canceled/Margin/Rejected")
-            self.order = None  # Reset the order variable
-
-    def notify_trade(self, trade):
-        if trade.isclosed:
-            print(f"TRADE CLOSED: Gross PnL = {trade.pnl:.2f}, Net PnL = {trade.pnlcomm:.2f}")
-
-# Initialize Cerebro engine
-cerebro = bt.Cerebro()
-
-# Add strategy to Cerebro
-cerebro.addstrategy(AIReversalStrategy)
-
-# Load Data (example CSV file with timestamp, open, high, low, close, volume columns)
-file = 'history/AUD_CAD_H1.csv'
-
-data = pd.read_csv(file, parse_dates=['time'])
-data.set_index('time', inplace=True)
-datafeed = bt.feeds.PandasData(dataname=data)
-cerebro.adddata(datafeed)
-
-# Configure the broker settings
-cerebro.broker.set_cash(1000)
-cerebro.broker.setcommission(commission=0.001)
-
-# Add analyzers to evaluate strategy performance
-cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio')
-cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
-cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
-
-# Add observers to plot buy/sell signals and portfolio changes
-cerebro.addobserver(bt.observers.BuySell)
-cerebro.addobserver(bt.observers.Broker)
-
-# Run the strategy
-results = cerebro.run()
-final_value = cerebro.broker.get_value()
-print(f"Final Portfolio Value: {final_value}")
-
-# Plot the results (including buy/sell signals and portfolio changes)
-cerebro.plot(style='candlestick')
+# Plot
+plt.figure(figsize=(12, 6))
+plt.plot(df['close'], label='Close', color='blue')
+plt.plot(df['supertrend'], label='SuperTrend', color='green')
+plt.legend()
+plt.show()

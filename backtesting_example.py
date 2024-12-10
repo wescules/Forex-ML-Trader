@@ -1,12 +1,8 @@
-from backtesting import Backtest, Strategy
+from backtesting import Backtest
 import pandas as pd
 import matplotlib.pyplot as plt
-from backtesting.test import SMA, EURUSD, GOOG
+from backtesting.test import EURUSD, GOOG
 import seaborn as sns
-# Custom module import
-import pkgutil
-import inspect
-from importlib import import_module
 
 from strategies import *
 
@@ -17,60 +13,48 @@ KEY_INDICATORS = ["Return (Ann.) [%]", "Exposure Time [%]", "Volatility (Ann.) [
 STRATEGIES_DIR = 'strategies'
 
 
-def get_strategy(strat: str):
-    return get_all_strategies(strategy_name=strat)
+class BacktestRunner():
+
+    def __init__(self, price_data, strategy, commission: float = 0.002, cash: float = 10000,
+                 exclusive_orders: bool = True, trade_on_close: bool = True):
+        self.bt = Backtest(data=price_data, strategy=strategy, commission=commission,
+                           cash=cash, exclusive_orders=exclusive_orders, trade_on_close=trade_on_close)
+        self.strategy = strategy
+
+    def run(self):
+        stats = self.bt.run()
+        print(stats)
+        self.bt.plot()
+
+    def run_optimized(self, show_heatmap: bool = False):
+        opt_values = self.strategy.get_optimization_params()
+
+        stats, heatmap = self.bt.optimize(
+            **opt_values,
+            maximize='Equity Final [$]',
+            # max_tries=200000,
+            method="grid",
+            random_state=0,
+            return_heatmap=True)
+        print(stats)
+        self.bt.plot()
+        
+        # show a visual display of what the the params bring in the $$$
+        if show_heatmap:
+            hm = heatmap.groupby(list(opt_values.keys())).mean().unstack()
+            # print(hm)
+            sns.heatmap(hm[::-1], cmap='viridis')
+            plt.show()
 
 
-def get_all_strategies(strategy_name: str = None):
-    strategy_classes = {}
-    for _, module_name, _ in pkgutil.iter_modules([STRATEGIES_DIR]):
-        # Import the strategy module dynamically
-        module = import_module(f'{STRATEGIES_DIR}.{module_name}')
 
-        # Get the strategy class from the module
-        strategy_class = next((cls for _, cls in inspect.getmembers(
-            module, inspect.isclass) if issubclass(cls, Strategy)), None)
+if __name__ == "__main__":
+    price_data = pd.read_csv('history/AUD_USD_D.csv',
+                             index_col=0, header=0, parse_dates=True)
+    price_data.rename(columns={'time': ''}, inplace=True)
+    price_data = price_data.iloc[:, :5]
 
-        # Add the strategy class to the dictionary with the module name as key
-        if strategy_class is not None:
-            strategy_classes[module_name] = strategy_class
+    backtest = BacktestRunner(price_data, SuperTrend, commission=.002,
+                              cash=250000, exclusive_orders=True, trade_on_close=True)
 
-        if strategy_name and module_name == strategy_name:
-            return strategy_class
-
-    return strategy_classes
-
-
-price_data = pd.read_csv('history/AUD_USD_H4.csv',
-                         index_col=0, header=0, parse_dates=True)
-price_data.rename(columns={'time': ''}, inplace=True)
-
-price_data = price_data.iloc[:, :5]
-strat = MeanRevision2
-
-
-bt = Backtest(EURUSD, strat, commission=.002,
-              cash=250000, exclusive_orders=True, trade_on_close=True)
-# output = bt.run()
-# print(output)
-
-
-opt_values = strat.get_optimization_params()
-
-
-stats, heatmap = bt.optimize(
-    **opt_values,
-    maximize='Equity Final [$]',
-    max_tries=20000,
-    method="grid",
-    random_state=0,
-    return_heatmap=True)
-# heatmap = heatmap.sort_values().iloc[-10:]
-# hm = heatmap.groupby(['rsi_window', 'length']).mean().unstack()
-# sns.heatmap(hm[::-1], cmap='viridis')
-# plt.show()
-
-print(stats)
-
-
-bt.plot()
+    backtest.run_optimized(show_heatmap=True)

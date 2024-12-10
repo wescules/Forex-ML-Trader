@@ -1,22 +1,20 @@
 from backtesting import Strategy
 import pandas as pd
 import pandas_ta as ta
-from backtesting.lib import crossover
 
 class SuperTrend(Strategy):
-    # above a value sell, below buy
+    # the longer the length the more candles you need until it starts trading
     length = 10
     supertrend_factor = 2
 
     @staticmethod
     def get_optimization_params():
         return dict(
-            length=range(10, 30, 2),
-            supertrend_factor=range(1, 3, 1),
+            length=range(4, 150, 2),
+            supertrend_factor=range(1, 5, 1),
         )
 
     def init(self):
-        
         self.st = ta.supertrend(pd.Series(self.data.High),
                                 pd.Series(self.data.Low),
                                 pd.Series(self.data.Close),

@@ -1,6 +1,7 @@
 from backtesting import Strategy
 import pandas as pd
 import pandas_ta as ta
+from backtesting.lib import TrailingStrategy
 
 
 class MeanRevision2(Strategy):
@@ -21,15 +22,34 @@ class MeanRevision2(Strategy):
     rsi_upper = 70
     rsi_lower = 30
     rsi_window = 14
-
+    atr_len = 14
+    
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            length=range(20, 200, 5),
+            rsi_upper=range(55, 90, 5),
+            rsi_lower=range(10, 45, 5),
+            rsi_window=range(5, 50, 5),
+            atr_len=range(5, 30, 5),
+        )
+    #optimal for aud_usd_h4 is (length=185,rsi_upper=70,rsi_lower=20,rsi_window=10,atr_len=5).
     def init(self):
-        self.rsi = self.I(ta.rsi, pd.Series(self.data.Close), self.rsi_window)
-        
-        self.bbands = ta.bbands(pd.Series(self.data.Close), length=self.length, stddev=self.std)
+        high = self.data.High
+        low = self.data.Low
+        close = self.data.Close
+
+        self.rsi = self.I(ta.rsi, pd.Series(close), self.rsi_window)
+
+        self.bbands = ta.bbands(
+            pd.Series(close), length=self.length, stddev=self.std)
         lowerStr = 'BBL_' + str(self.length) + '_' + str(self.std) + '.0'
-        upperStr = 'BBU_' + str(self.length) + '_' + str(self.std) + '.0'        
+        upperStr = 'BBU_' + str(self.length) + '_' + str(self.std) + '.0'
         self.lower_bbands = self.I(lambda: self.bbands[lowerStr])
         self.upper_bbands = self.I(lambda: self.bbands[upperStr])
+
+        self.atr = self.I(ta.atr, pd.Series(
+            high), pd.Series(low), pd.Series(close), self.atr_len)
 
     def next(self):
         price = self.data.Close[-1]
@@ -37,7 +57,7 @@ class MeanRevision2(Strategy):
         lower_band = self.lower_bbands[-1]
         upper_band = self.upper_bbands[-1]
 
-        if price < lower_band and rsi < self.rsi_lower:
+        if price < lower_band and rsi < self.rsi_lower and not self.position.is_long:
             self.buy()
-        elif price > upper_band and rsi > self.rsi_upper:
+        elif price > upper_band and rsi > self.rsi_upper and not self.position.is_short:
             self.sell()

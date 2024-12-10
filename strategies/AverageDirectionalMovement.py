@@ -15,6 +15,14 @@ class AverageDirectionalMovement(Strategy):
     # reduces the frequency of trades, while a lower threshold allows more trades but may result in entering
     # weaker trends.
     adx_threshold = 15
+    
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            adx_period=range(12, 30, 2),
+            adx_threshold=range(10, 50, 5),
+        )
+
 
     def init(self):
         high, low, close = self.data.High, self.data.Low, self.data.Close

@@ -12,6 +12,13 @@ class MACD(Strategy):
     position_size = 50
     tp_over_macd = 10
     tp_under_macd = 10
+    
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            macd_slow=range(12, 50, 2),
+            macd_fast=range(4, 30, 2),
+        )
 
     def init(self):
         def zero_line(arr):

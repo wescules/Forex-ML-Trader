@@ -11,6 +11,14 @@ class RsiOscillator(Strategy):
     rsi_window = 14
     position_size = 1
  
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            upper_bound=range(55, 90, 5),
+            lower_bound=range(10, 45, 5),
+            rsi_window=range(5, 50, 5),
+        )
+    
     def init(self):
         self.daily_rsi = self.I(ta.rsi, pd.Series(
             self.data.Close), self.rsi_window)

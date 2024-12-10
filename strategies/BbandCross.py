@@ -7,6 +7,14 @@ import pandas as pd
 class BbandCross(TrailingStrategy):
     length = 20
     std = 2
+    atr_len = 14
+
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            length=range(20, 200, 5),
+            atr_len=range(5, 30, 5)
+        )
 
     def init(self):
         super().init()
@@ -23,7 +31,7 @@ class BbandCross(TrailingStrategy):
         self.upper_bbands = self.I(lambda: self.bbands[upperStr])
 
         self.atr = self.I(ta.atr, pd.Series(
-            high), pd.Series(low), pd.Series(close), 14)
+            high), pd.Series(low), pd.Series(close), self.atr_len)
 
     def next(self):
         super().next()

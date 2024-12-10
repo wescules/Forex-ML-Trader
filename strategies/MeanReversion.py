@@ -9,6 +9,12 @@ class MeanReversion(Strategy):
     roll = 50
     position_size = 1
 
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            roll=range(30, 60, 5),
+        )
+
     def init(self):
 
         def std_3(arr, n):

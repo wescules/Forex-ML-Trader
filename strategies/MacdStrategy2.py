@@ -10,6 +10,15 @@ class MacdStrategy2(Strategy):
     S = 12
     L = 26
     H = 9
+    
+    @staticmethod
+    def get_optimization_params():
+        return dict(
+            S=range(8, 20, 1),
+            L=range(20, 30, 1),
+            H=range(5, 15, 1),
+        )
+
 
     current_state = 0   # 0 = None, 1 = Break UP, -1 = Break Down
 

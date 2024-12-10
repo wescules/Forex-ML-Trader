@@ -1,17 +1,14 @@
 from backtesting import Backtest, Strategy
 import pandas as pd
-
+import matplotlib.pyplot as plt
 from backtesting.test import SMA, EURUSD, GOOG
-
-
+import seaborn as sns
 # Custom module import
-import os
 import pkgutil
 import inspect
 from importlib import import_module
 
-from strategies import MACD
-
+from strategies import *
 
 # CONSTANTS
 KEY_INDICATORS = ["Return (Ann.) [%]", "Exposure Time [%]", "Volatility (Ann.) [%]",
@@ -19,8 +16,10 @@ KEY_INDICATORS = ["Return (Ann.) [%]", "Exposure Time [%]", "Volatility (Ann.) [
 
 STRATEGIES_DIR = 'strategies'
 
+
 def get_strategy(strat: str):
     return get_all_strategies(strategy_name=strat)
+
 
 def get_all_strategies(strategy_name: str = None):
     strategy_classes = {}
@@ -35,10 +34,10 @@ def get_all_strategies(strategy_name: str = None):
         # Add the strategy class to the dictionary with the module name as key
         if strategy_class is not None:
             strategy_classes[module_name] = strategy_class
-            
+
         if strategy_name and module_name == strategy_name:
             return strategy_class
-            
+
     return strategy_classes
 
 
@@ -47,39 +46,31 @@ price_data = pd.read_csv('history/AUD_USD_H4.csv',
 price_data.rename(columns={'time': ''}, inplace=True)
 
 price_data = price_data.iloc[:, :5]
-# strat = get_strategy('BbandCross')
-strat = get_strategy('MeanRevision2')
+strat = MeanRevision2
 
 
-bt = Backtest(price_data, strat, commission=.002,
-              cash=5000, exclusive_orders=True)
-output = bt.run()
-print(output)
+bt = Backtest(EURUSD, strat, commission=.002,
+              cash=250000, exclusive_orders=True, trade_on_close=True)
+# output = bt.run()
+# print(output)
 
 
-# stats, heatmap = bt.optimize(
-#     n1=range(10, 110, 10),
-#     n2=range(20, 210, 20),
-#     n_enter=range(15, 35, 5),
-#     n_exit=range(10, 25, 5),
-#     constraint=lambda p: p.n_exit < p.n_enter < p.n1 < p.n2,
-#     maximize='Equity Final [$]',
-#     max_tries=200,
-#     method="grid",
-#     random_state=0,
-#     return_heatmap=True)
+opt_values = strat.get_optimization_params()
 
-# stats, heatmap = bt.optimize(
-#     S=range(1, 36, 1),
-#     L=range(1, 36, 1),
-#     H=range(1, 30, 1),
-#     maximize='Equity Final [$]',
-#     max_tries=200,
-#     method="grid",
-#     random_state=0,
-#     return_heatmap=True)
-# heatmap = heatmap.sort_values().iloc[-3:]
-# print(heatmap)
+
+stats, heatmap = bt.optimize(
+    **opt_values,
+    maximize='Equity Final [$]',
+    max_tries=20000,
+    method="grid",
+    random_state=0,
+    return_heatmap=True)
+# heatmap = heatmap.sort_values().iloc[-10:]
+# hm = heatmap.groupby(['rsi_window', 'length']).mean().unstack()
+# sns.heatmap(hm[::-1], cmap='viridis')
+# plt.show()
+
+print(stats)
 
 
 bt.plot()

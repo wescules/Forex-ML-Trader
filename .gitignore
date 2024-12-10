@@ -19,3 +19,4 @@ alpacaconfig.py
 ticker_data.db
 backend/config.py
 oanda.cfg
+*.html

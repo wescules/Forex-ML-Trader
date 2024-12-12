@@ -15,9 +15,9 @@ STRATEGIES_DIR = 'strategies'
 
 class BacktestRunner():
 
-    def __init__(self, price_data, strategy, commission: float = 0.002, cash: float = 10000,
+    def __init__(self, price_data, strategy, margin: float = 1, commission: float = 0.002, cash: float = 10000,
                  exclusive_orders: bool = True, trade_on_close: bool = True):
-        self.bt = Backtest(data=price_data, strategy=strategy, commission=commission,
+        self.bt = Backtest(data=price_data, strategy=strategy, commission=commission, margin=margin,
                            cash=cash, exclusive_orders=exclusive_orders, trade_on_close=trade_on_close)
         self.strategy = strategy
 
@@ -32,7 +32,7 @@ class BacktestRunner():
         stats, heatmap = self.bt.optimize(
             **opt_values,
             maximize='Equity Final [$]',
-            # max_tries=200000,
+            max_tries=20000,
             method="grid",
             random_state=0,
             return_heatmap=True)
@@ -49,12 +49,12 @@ class BacktestRunner():
 
 
 if __name__ == "__main__":
-    price_data = pd.read_csv('history/AUD_USD_D.csv',
+    price_data = pd.read_csv('history/AUD_USD_H1.csv',
                              index_col=0, header=0, parse_dates=True)
     price_data.rename(columns={'time': ''}, inplace=True)
     price_data = price_data.iloc[:, :5]
 
-    backtest = BacktestRunner(price_data, SuperTrend, commission=.002,
-                              cash=250000, exclusive_orders=True, trade_on_close=True)
+    backtest = BacktestRunner(price_data, DoubleSuperTrend, commission=.002, margin=1,
+                              cash=5000, exclusive_orders=True, trade_on_close=True)
 
-    backtest.run_optimized(show_heatmap=True)
+    backtest.run_optimized()

@@ -10,7 +10,7 @@ class SuperTrend(Strategy):
     @staticmethod
     def get_optimization_params():
         return dict(
-            length=range(4, 150, 2),
+            length=range(5, 600, 10),
             supertrend_factor=range(1, 5, 1),
         )
 

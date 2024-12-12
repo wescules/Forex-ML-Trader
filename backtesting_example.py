@@ -49,12 +49,12 @@ class BacktestRunner():
 
 
 if __name__ == "__main__":
-    price_data = pd.read_csv('history/AUD_USD_H1.csv',
+    price_data = pd.read_csv('history/NZD_USD_H4.csv',
                              index_col=0, header=0, parse_dates=True)
     price_data.rename(columns={'time': ''}, inplace=True)
     price_data = price_data.iloc[:, :5]
 
-    backtest = BacktestRunner(price_data, DoubleSuperTrend, commission=.002, margin=1,
+    backtest = BacktestRunner(price_data, SMCOrderblock, commission=.002, margin=0.02,
                               cash=5000, exclusive_orders=True, trade_on_close=True)
 
-    backtest.run_optimized()
+    backtest.run()

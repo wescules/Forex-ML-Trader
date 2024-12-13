@@ -430,7 +430,7 @@ def add_retracements(fig, df, retracements):
 
 # get the data
 def import_data():
-    df = pd.read_csv('../history/EUR_USD_H4.csv', index_col=0,
+    df = pd.read_csv('history/EUR_USD_H4.csv', index_col=0,
                      header=0, parse_dates=True)
     df = df.iloc[:, :5]
     df.rename(columns={'time': 'timestamp', 'Open': 'open', 'High': 'high',
@@ -444,7 +444,7 @@ def fig_to_buffer(fig: go.Figure):
     return np.array(fig_image)
 
 df = import_data()
-df = df.iloc[-500:]
+# df = df.iloc[-500:]
 gif = []
 smc.fvg(df, join_consecutive=True)
 window = 100
@@ -497,4 +497,4 @@ for pos in tqdm(range(window, len(df))):
     gif.append(fig_to_buffer(fig))
 
 # save the gif
-imageio.mimsave("testScale5new.gif", gif, duration=1)
+imageio.mimsave("testScale5.gif", gif, duration=1)

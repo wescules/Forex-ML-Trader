@@ -1,4 +1,3 @@
-from enum import Enum
 from functools import wraps
 import pandas as pd
 import numpy as np
@@ -6,8 +5,6 @@ from pandas import DataFrame, Series
 from datetime import datetime
 
 # Docs: https://github.com/joshyattridge/smart-money-concepts/blob/master/README.md
-
-
 def inputvalidator(input_="ohlc"):
     def dfcheck(func):
         @wraps(func)
@@ -77,11 +74,11 @@ class smc:
 
         fvg = np.where(
             (
-                (ohlc["high"].shift(2) < ohlc["low"])
+                (ohlc["high"].shift(1) < ohlc["low"].shift(-1))
                 & (ohlc["close"] > ohlc["open"])
             )
             | (
-                (ohlc["low"].shift(2) > ohlc["high"])
+                (ohlc["low"].shift(1) > ohlc["high"].shift(-1))
                 & (ohlc["close"] < ohlc["open"])
             ),
             np.where(ohlc["close"] > ohlc["open"], 1, -1),
@@ -92,8 +89,8 @@ class smc:
             ~np.isnan(fvg),
             np.where(
                 ohlc["close"] > ohlc["open"],
-                ohlc["low"],
-                ohlc["low"].shift(2),
+                ohlc["low"].shift(-1),
+                ohlc["low"].shift(1),
             ),
             np.nan,
         )
@@ -102,8 +99,8 @@ class smc:
             ~np.isnan(fvg),
             np.where(
                 ohlc["close"] > ohlc["open"],
-                ohlc["high"].shift(2),
-                ohlc["high"],
+                ohlc["high"].shift(1),
+                ohlc["high"].shift(-1),
             ),
             np.nan,
         )
@@ -126,248 +123,103 @@ class smc:
             if np.any(mask):
                 j = np.argmax(mask) + i + 2
                 mitigated_index[i] = j
+
         mitigated_index = np.where(np.isnan(fvg), np.nan, mitigated_index)
-        return pd.concat([
-            pd.Series(fvg, name="FVG"),
-            pd.Series(top, name="Top"),
-            pd.Series(bottom, name="Bottom"),
-            pd.Series(mitigated_index, name="MitigatedIndex"),
-        ],
+
+        return pd.concat(
+            [
+                pd.Series(fvg, name="FVG"),
+                pd.Series(top, name="Top"),
+                pd.Series(bottom, name="Bottom"),
+                pd.Series(mitigated_index, name="MitigatedIndex"),
+            ],
             axis=1,
         )
 
-    class SwingMethodEvaluator(Enum):
-        COMBINED = "combined"
-        FRACTALS = "fractals"
-        MOMENTUM = "momentum"
-        WEIGHTED_ROLLING_WINDOW = "weighted_rolling_window"
-        DEFAULT = "default"
-
     @classmethod
-    def swing_highs_lows(cls, ohlc: DataFrame, swing_evaluator: SwingMethodEvaluator = SwingMethodEvaluator.DEFAULT,
-                         swing_length: int = 10, short_swing_length: int = 10, long_swing_length=50) -> Series:
+    def swing_highs_lows(cls, ohlc: DataFrame, swing_length: int = 50) -> Series:
         """
-        Swing Highs and Lows without lookahead bias.
-
-        A swing high is when the current high is the highest high out of 
-        the last `swing_length` candles (including itself).
-        A swing low is when the current low is the lowest low out of 
-        the last `swing_length` candles (including itself).
+        Swing Highs and Lows
+        A swing high is when the current high is the highest high out of the swing_length amount of candles before and after.
+        A swing low is when the current low is the lowest low out of the swing_length amount of candles before and after.
 
         parameters:
-        swing_length: int - Number of candles to look back to determine swings.
-        short_swing_length: int - Number of candles for short-term swings.
-        long_swing_length: int - Number of candles for long-term swings.
+        swing_length: int - the amount of candles to look back and forward to determine the swing high or low
 
         returns:
         HighLow = 1 if swing high, -1 if swing low
         Level = the level of the swing high or low
         """
-        def fractals():
-            """
-            Identifies swing highs/lows based on a smaller subset of candles rather than a fixed-length rolling window.
-            
-            How it helps: Fractals use fewer candles (e.g., just the previous two and the next two), which reduces lag.
 
-            Trade-off: Less robust for noisy markets.
-            """
-            swing_highs = np.where(
-                (ohlc["high"] > ohlc["high"].shift(1)) &
-                (ohlc["high"] > ohlc["high"].shift(2)) &
-                (ohlc["high"] > ohlc["high"].rolling(window=swing_length, center=False).max().shift(1)),
-                1,
-                np.nan,
-            )
-            swing_lows = np.where(
-                (ohlc["low"] < ohlc["low"].shift(1)) &
-                (ohlc["low"] < ohlc["low"].shift(2)) &
-                (ohlc["low"] < ohlc["low"].rolling(window=swing_length, center=False).min().shift(1)),
+        swing_length *= 2
+        # set the highs to 1 if the current high is the highest high in the last 5 candles and next 5 candles
+        swing_highs_lows = np.where(
+            ohlc["high"]
+            == ohlc["high"].shift(-(swing_length // 2)).rolling(swing_length).max(),
+            1,
+            np.where(
+                ohlc["low"]
+                == ohlc["low"].shift(-(swing_length // 2)).rolling(swing_length).min(),
                 -1,
                 np.nan,
-            )
-            # Combine swing highs and lows
-            swing_highs_lows = np.nan_to_num(
-                swing_highs) + np.nan_to_num(swing_lows)
+            ),
+        )
 
-            # Determine swing levels
-            level = np.where(
-                swing_highs_lows == 1,
-                ohlc["high"],  # Level for swing highs
-                # Level for swing lows
-                np.where(swing_highs_lows == -1, ohlc["low"], np.nan),
-            )
-            return swing_highs_lows, level
+        while True:
+            positions = np.where(~np.isnan(swing_highs_lows))[0]
 
-        def momentum():
-            """
-            Use momentum (e.g., rate of change or RSI) to confirm swing points earlier by identifying
-            trends or overbought/oversold conditions.
-            
-            How it helps: This can confirm swing points without waiting for the full swing_length.
-            """
+            if len(positions) < 2:
+                break
 
-            ohlc["momentum"] = ohlc["close"].diff(swing_length)
-            swing_highs = np.where(
-                (ohlc["high"] == ohlc["high"].rolling(window=swing_length).max()) &
-                (ohlc["momentum"] > 0),
-                1,
-                np.nan,
-            )
-            swing_lows = np.where(
-                (ohlc["low"] == ohlc["low"].rolling(window=swing_length).min()) &
-                (ohlc["momentum"] < 0),
-                -1,
-                np.nan,
-            )
-            # Combine swing highs and lows
-            swing_highs_lows = np.nan_to_num(
-                swing_highs) + np.nan_to_num(swing_lows)
+            current = swing_highs_lows[positions[:-1]]
+            next = swing_highs_lows[positions[1:]]
 
-            # Determine swing levels
-            level = np.where(
-                swing_highs_lows == 1,
-                ohlc["high"],  # Level for swing highs
-                # Level for swing lows
-                np.where(swing_highs_lows == -1, ohlc["low"], np.nan),
-            )
-            return swing_highs_lows, level
+            highs = ohlc["high"].iloc[positions[:-1]].values
+            lows = ohlc["low"].iloc[positions[:-1]].values
 
-        def weighted_rolling_window():
-            """
-            Instead of treating all candles equally in the rolling window, give more weight to recent candles.
+            next_highs = ohlc["high"].iloc[positions[1:]].values
+            next_lows = ohlc["low"].iloc[positions[1:]].values
 
-            How it helps: This makes the indicator react faster to recent price movements.
+            index_to_remove = np.zeros(len(positions), dtype=bool)
 
-            Trade-off: Swings may not strictly align with traditional high/low definitions.
-            """
+            consecutive_highs = (current == 1) & (next == 1)
+            index_to_remove[:-1] |= consecutive_highs & (highs < next_highs)
+            index_to_remove[1:] |= consecutive_highs & (highs >= next_highs)
 
-            ohlc["high_ema"] = ohlc["high"].ewm(span=swing_length).mean()
-            ohlc["low_ema"] = ohlc["low"].ewm(span=swing_length).mean()
+            consecutive_lows = (current == -1) & (next == -1)
+            index_to_remove[:-1] |= consecutive_lows & (lows > next_lows)
+            index_to_remove[1:] |= consecutive_lows & (lows <= next_lows)
 
-            swing_highs = np.where(ohlc["high"] >= ohlc["high_ema"], 1, np.nan)
-            swing_lows = np.where(ohlc["low"] <= ohlc["low_ema"], -1, np.nan)
-            # Combine swing highs and lows
-            swing_highs_lows = np.nan_to_num(
-                swing_highs) + np.nan_to_num(swing_lows)
+            if not index_to_remove.any():
+                break
 
-            # Determine swing levels
-            level = np.where(
-                swing_highs_lows == 1,
-                ohlc["high"],  # Level for swing highs
-                # Level for swing lows
-                np.where(swing_highs_lows == -1, ohlc["low"], np.nan),
-            )
-            return swing_highs_lows, level
+            swing_highs_lows[positions[index_to_remove]] = np.nan
 
-        def combined():
-            """
-            Combine Short and Long Swing Lengths for Swing Highs and Lows.
+        positions = np.where(~np.isnan(swing_highs_lows))[0]
 
-            Parameters:
-            ohlc: DataFrame - Contains columns 'high' and 'low'.
-            short_swing_length: int - Number of candles for short-term swings.
-            long_swing_length: int - Number of candles for long-term swings.
-            """
+        if len(positions) > 0:
+            if swing_highs_lows[positions[0]] == 1:
+                swing_highs_lows[0] = -1
+            if swing_highs_lows[positions[0]] == -1:
+                swing_highs_lows[0] = 1
+            if swing_highs_lows[positions[-1]] == -1:
+                swing_highs_lows[-1] = 1
+            if swing_highs_lows[positions[-1]] == 1:
+                swing_highs_lows[-1] = -1
 
-            # Short-term swing highs and lows
-            short_highs = ohlc["high"].rolling(
-                window=short_swing_length, min_periods=1).max()
-            short_lows = ohlc["low"].rolling(
-                window=short_swing_length, min_periods=1).min()
+        level = np.where(
+            ~np.isnan(swing_highs_lows),
+            np.where(swing_highs_lows == 1, ohlc["high"], ohlc["low"]),
+            np.nan,
+        )
 
-            short_swing_highs = np.where(
-                ohlc["high"] == short_highs, 1, np.nan)
-            short_swing_lows = np.where(ohlc["low"] == short_lows, -1, np.nan)
-
-            # Long-term swing highs and lows
-            long_highs = ohlc["high"].rolling(
-                window=long_swing_length, min_periods=1).max()
-            long_lows = ohlc["low"].rolling(
-                window=long_swing_length, min_periods=1).min()
-
-            long_swing_highs = np.where(ohlc["high"] == long_highs, 2, np.nan)
-            long_swing_lows = np.where(ohlc["low"] == long_lows, -2, np.nan)
-
-            # Combine short-term and long-term swings
-            swing_highs_lows = (
-                np.nan_to_num(short_swing_highs) +
-                np.nan_to_num(short_swing_lows) +
-                np.nan_to_num(long_swing_highs) +
-                np.nan_to_num(long_swing_lows)
-            )
-
-            # Determine swing levels
-            level = np.where(
-                swing_highs_lows == 1, ohlc["high"],  # Short-term high
-                np.where(
-                    swing_highs_lows == -1, ohlc["low"],  # Short-term low
-                    np.where(
-                        swing_highs_lows == 2, ohlc["high"],  # Long-term high
-                        np.where(swing_highs_lows == -2,
-                                 ohlc["low"], np.nan)  # Long-term low
-                    )
-                )
-            )
-            return swing_highs_lows, level
-
-        def default():
-            """
-            Swing Highs and Lows without lookahead bias.
-
-            A swing high is when the current high is the highest high out of 
-            the last `swing_length` candles (including itself).
-            A swing low is when the current low is the lowest low out of 
-            the last `swing_length` candles (including itself).
-            """
-
-            # Calculate swing highs
-            swing_highs = np.where(
-                ohlc["high"] == ohlc["high"].rolling(
-                    window=swing_length, min_periods=1).max(),
-                1,
-                np.nan,
-            )
-
-            # Calculate swing lows
-            swing_lows = np.where(
-                ohlc["low"] == ohlc["low"].rolling(
-                    window=swing_length, min_periods=1).min(),
-                -1,
-                np.nan,
-            )
-
-            # Combine swing highs and lows
-            swing_highs_lows = np.nan_to_num(
-                swing_highs) + np.nan_to_num(swing_lows)
-
-            # Determine swing levels
-            level = np.where(
-                swing_highs_lows == 1,
-                ohlc["high"],  # Level for swing highs
-                # Level for swing lows
-                np.where(swing_highs_lows == -1, ohlc["low"], np.nan),
-            )
-            return swing_highs_lows, level
-
-        match swing_evaluator.value:
-            case "momentum":
-                swing_highs_lows, level = momentum()
-            case "weighted_rolling_window":
-                swing_highs_lows, level = weighted_rolling_window()
-            case "fractals":
-                swing_highs_lows, level = fractals()
-            case "combined":
-                swing_highs_lows, level = combined()
-            case "default":
-                swing_highs_lows, level = default()
-            case _:
-                swing_highs_lows, level = default()
-
-        # Return results as a DataFrame
-        return pd.DataFrame({
-            "HighLow": swing_highs_lows,
-            "Level": level,
-        })
+        return pd.concat(
+            [
+                pd.Series(swing_highs_lows, name="HighLow"),
+                pd.Series(level, name="Level"),
+            ],
+            axis=1,
+        )
 
     @classmethod
     def bos_choch(
@@ -548,89 +400,202 @@ class smc:
         swing_highs_lows = swing_highs_lows.copy()
         ohlc_len = len(ohlc)
 
-        _open, _high, _low, _close, _volume = ohlc["open"], ohlc["high"], ohlc["low"], ohlc["close"], ohlc["volume"]
-        _swing_high_low = swing_highs_lows["HighLow"]
+        _open = ohlc["open"].values
+        _high = ohlc["high"].values
+        _low = ohlc["low"].values
+        _close = ohlc["close"].values
+        _volume = ohlc["volume"].values
+        _swing_high_low = swing_highs_lows["HighLow"].values
 
-        # Initialize arrays
-        ob = np.zeros(ohlc_len, dtype=np.int32)
-        top = np.zeros(ohlc_len, dtype=np.float32)
-        bottom = np.zeros(ohlc_len, dtype=np.float32)
-        obVolume = np.zeros(ohlc_len, dtype=np.float32)
-        lowVolume = np.zeros(ohlc_len, dtype=np.float32)
-        highVolume = np.zeros(ohlc_len, dtype=np.float32)
-        percentage = np.zeros(ohlc_len, dtype=np.int32)
-        breaker = np.full(ohlc_len, False, dtype=bool)
-        crossed = np.full(ohlc_len, False, dtype=bool)
-        mitigated_index = np.zeros(ohlc_len, dtype=np.int32)  # Initialize mitigated index
-
-        def find_last_swing(index: int, direction: int) -> int:
-            """Helper function to find last swing index based on direction (1 for high, -1 for low)."""
-            last_swing_indices = np.where((_swing_high_low == direction) & (np.arange(ohlc_len) < index))[0]
-            return np.max(last_swing_indices) if last_swing_indices.size > 0 else None
-
-        def update_order_block(index: int, direction: int):
-            nonlocal mitigated_index
-            if direction == 1:  # Bullish OB
-                obBtm, obTop = _low.iloc[index - 1], _high.iloc[index - 1]
-            else:  # Bearish OB
-                obBtm, obTop = _high.iloc[index - 1], _low.iloc[index - 1]
-
-            obIndex = index - 1
-            for j in range(1, index):
-                if direction == 1:  # Bullish
-                    obBtm = min(_low.iloc[j], obBtm)
-                    if obBtm == _low.iloc[j]:
-                        obTop = _high.iloc[j]
-                else:  # Bearish
-                    obTop = max(_high.iloc[j], obTop)
-                    if obTop == _high.iloc[j]:
-                        obBtm = _low.iloc[j]
-
-                if direction == 1 and obBtm == _low.iloc[j]:
-                    obIndex = j
-                elif direction == -1 and obTop == _high.iloc[j]:
-                    obIndex = j
-
-            ob[obIndex] = direction
-            top[obIndex], bottom[obIndex] = obTop, obBtm
-            obVolume[obIndex] = sum(_volume.iloc[index - i] for i in range(3))  # Sum of last 3 volumes
-            lowVolume[obIndex] = _volume.iloc[index - 2] if direction == 1 else _volume.iloc[index]
-            highVolume[obIndex] = _volume.iloc[index] + _volume.iloc[index - 1] if direction == 1 else _volume.iloc[index - 2]
-            percentage[obIndex] = (min(lowVolume[obIndex], highVolume[obIndex]) /
-                                max(lowVolume[obIndex], highVolume[obIndex])) * 100.0 if max(lowVolume[obIndex], highVolume[obIndex]) != 0 else 1
-
-            # Update mitigated index when block is mitigated
-            if breaker[obIndex] and mitigated_index[obIndex] == 0:
-                mitigated_index[obIndex] = index - 1
+        crossed = np.full(len(ohlc), False, dtype=bool)
+        ob = np.zeros(len(ohlc), dtype=np.int32)
+        top = np.zeros(len(ohlc), dtype=np.float32)
+        bottom = np.zeros(len(ohlc), dtype=np.float32)
+        obVolume = np.zeros(len(ohlc), dtype=np.float32)
+        lowVolume = np.zeros(len(ohlc), dtype=np.float32)
+        highVolume = np.zeros(len(ohlc), dtype=np.float32)
+        percentage = np.zeros(len(ohlc), dtype=np.int32)
+        mitigated_index = np.zeros(len(ohlc), dtype=np.int32)
+        breaker = np.full(len(ohlc), False, dtype=bool)
 
         for i in range(ohlc_len):
             close_index = i
 
-            # Process Bullish Order Block
-            last_top_index = find_last_swing(close_index, 1)
-            if last_top_index is not None and _close.iloc[close_index] > _high.iloc[last_top_index] and not crossed[last_top_index]:
-                crossed[last_top_index] = True
-                update_order_block(close_index, 1)
+            # Bullish Order Block
+            if len(ob[ob == 1]) > 0:
+                for j in range(len(ob) - 1, -1, -1):
+                    if ob[j] == 1:
+                        currentOB = j
+                        if breaker[currentOB]:
+                            if _high[close_index] > top[currentOB]:
+                                ob[j] = top[j] = bottom[j] = obVolume[j] = lowVolume[j] = (
+                                    highVolume[j]
+                                ) = mitigated_index[j] = percentage[j] = 0.0
 
-            # Process Bearish Order Block
-            last_btm_index = find_last_swing(close_index, -1)
-            if last_btm_index is not None and _close.iloc[close_index] < _low.iloc[last_btm_index] and not crossed[last_btm_index]:
-                crossed[last_btm_index] = True
-                update_order_block(close_index, -1)
+                        elif (
+                            not close_mitigation and _low[close_index] < bottom[currentOB]
+                        ) or (
+                            close_mitigation
+                            and min(
+                                _open[close_index],
+                                _close[close_index],
+                            )
+                            < bottom[currentOB]
+                        ):
+                            breaker[currentOB] = True
+                            mitigated_index[currentOB] = close_index - 1
 
-        # Final adjustments
+            last_top_indices = np.where(
+                (_swing_high_low == 1)
+                & (np.arange(len(swing_highs_lows["HighLow"])) < close_index)
+            )[0]
+
+            if last_top_indices.size > 0:
+                last_top_index = np.max(last_top_indices)
+            else:
+                last_top_index = None
+
+            if last_top_index is not None:
+
+                swing_top_price = _high[last_top_index]
+                if _close[close_index] > swing_top_price and not crossed[last_top_index]:
+                    crossed[last_top_index] = True
+                    obBtm = _high[close_index - 1]
+                    obTop = _low[close_index - 1]
+                    obIndex = close_index - 1
+                    for j in range(1, close_index - last_top_index):
+                        obBtm = min(
+                            _low[last_top_index + j],
+                            obBtm,
+                        )
+                        if obBtm == _low[last_top_index + j]:
+                            obTop = _high[last_top_index + j]
+                        obIndex = (
+                            last_top_index + j
+                            if obBtm == _low[last_top_index + j]
+                            else obIndex
+                        )
+
+                    ob[obIndex] = 1
+                    top[obIndex] = obTop
+                    bottom[obIndex] = obBtm
+                    obVolume[obIndex] = (
+                        _volume[close_index]
+                        + _volume[close_index - 1]
+                        + _volume[close_index - 2]
+                    )
+                    lowVolume[obIndex] = _volume[close_index - 2]
+                    highVolume[obIndex] = _volume[close_index] + \
+                        _volume[close_index - 1]
+                    percentage[obIndex] = (
+                        np.min([highVolume[obIndex], lowVolume[obIndex]], axis=0)
+                        / np.max([highVolume[obIndex], lowVolume[obIndex]], axis=0)
+                        if np.max([highVolume[obIndex], lowVolume[obIndex]], axis=0) != 0
+                        else 1
+                    ) * 100.0
+
+        for i in range(len(ohlc)):
+            close_index = i
+            close_price = _close[close_index]
+
+            # Bearish Order Block
+            if len(ob[ob == -1]) > 0:
+                for j in range(len(ob) - 1, -1, -1):
+                    if ob[j] == -1:
+                        currentOB = j
+                        if breaker[currentOB]:
+                            if _low[close_index] < bottom[currentOB]:
+
+                                ob[j] = top[j] = bottom[j] = obVolume[j] = lowVolume[j] = (
+                                    highVolume[j]
+                                ) = mitigated_index[j] = percentage[j] = 0.0
+
+                        elif (
+                            not close_mitigation and _high[close_index] > top[currentOB]
+                        ) or (
+                            close_mitigation
+                            and max(
+                                _open[close_index],
+                                _close[close_index],
+                            )
+                            > top[currentOB]
+                        ):
+                            breaker[currentOB] = True
+                            mitigated_index[currentOB] = close_index
+
+            last_btm_indices = np.where(
+                (swing_highs_lows["HighLow"] == -1)
+                & (np.arange(len(swing_highs_lows["HighLow"])) < close_index)
+            )[0]
+            if last_btm_indices.size > 0:
+                last_btm_index = np.max(last_btm_indices)
+            else:
+                last_btm_index = None
+
+            if last_btm_index is not None:
+                swing_btm_price = _low[last_btm_index]
+                if close_price < swing_btm_price and not crossed[last_btm_index]:
+                    crossed[last_btm_index] = True
+                    obBtm = _low[close_index - 1]
+                    obTop = _high[close_index - 1]
+                    obIndex = close_index - 1
+                    for j in range(1, close_index - last_btm_index):
+                        obTop = max(_high[last_btm_index + j], obTop)
+                        obBtm = (
+                            _low[last_btm_index + j]
+                            if obTop == _high[last_btm_index + j]
+                            else obBtm
+                        )
+                        obIndex = (
+                            last_btm_index + j
+                            if obTop == _high[last_btm_index + j]
+                            else obIndex
+                        )
+
+                    ob[obIndex] = -1
+                    top[obIndex] = obTop
+                    bottom[obIndex] = obBtm
+                    obVolume[obIndex] = (
+                        _volume[close_index]
+                        + _volume[close_index - 1]
+                        + _volume[close_index - 2]
+                    )
+                    lowVolume[obIndex] = _volume[close_index] + \
+                        _volume[close_index - 1]
+                    highVolume[obIndex] = _volume[close_index - 2]
+                    percentage[obIndex] = (
+                        np.min([highVolume[obIndex], lowVolume[obIndex]], axis=0)
+                        / np.max([highVolume[obIndex], lowVolume[obIndex]], axis=0)
+                        if np.max([highVolume[obIndex], lowVolume[obIndex]], axis=0) != 0
+                        else 1
+                    ) * 100.0
+
         ob = np.where(ob != 0, ob, np.nan)
-        top, bottom, obVolume, mitigated_index, percentage = (np.where(~np.isnan(ob), arr, np.nan) for arr in [top, bottom, obVolume, mitigated_index, percentage])
+        top = np.where(~np.isnan(ob), top, np.nan)
+        bottom = np.where(~np.isnan(ob), bottom, np.nan)
+        obVolume = np.where(~np.isnan(ob), obVolume, np.nan)
+        mitigated_index = np.where(~np.isnan(ob), mitigated_index, np.nan)
+        percentage = np.where(~np.isnan(ob), percentage, np.nan)
 
-        # Return as DataFrame
-        return pd.DataFrame({
-            "OB": ob,
-            "Top": top,
-            "Bottom": bottom,
-            "OBVolume": obVolume,
-            "MitigatedIndex": mitigated_index,
-            "Percentage": percentage
-        })
+        ob_series = pd.Series(ob, name="OB")
+        top_series = pd.Series(top, name="Top")
+        bottom_series = pd.Series(bottom, name="Bottom")
+        obVolume_series = pd.Series(obVolume, name="OBVolume")
+        mitigated_index_series = pd.Series(
+            mitigated_index, name="MitigatedIndex")
+        percentage_series = pd.Series(percentage, name="Percentage")
+
+        return pd.concat(
+            [
+                ob_series,
+                top_series,
+                bottom_series,
+                obVolume_series,
+                mitigated_index_series,
+                percentage_series,
+            ],
+            axis=1,
+        )
 
     @classmethod
     def liquidity(

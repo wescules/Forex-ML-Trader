@@ -2,6 +2,7 @@ from backtesting import Backtest
 import pandas as pd
 import matplotlib.pyplot as plt
 from backtesting.test import EURUSD, GOOG
+from backtesting.lib import random_ohlc_data
 import seaborn as sns
 
 from strategies import *
@@ -49,12 +50,15 @@ class BacktestRunner():
 
 
 if __name__ == "__main__":
-    price_data = pd.read_csv('history/NZD_USD_H4.csv',
+    price_data = pd.read_csv('history/EUR_USD_M15.csv',
                              index_col=0, header=0, parse_dates=True)
     price_data.rename(columns={'time': ''}, inplace=True)
     price_data = price_data.iloc[:, :5]
 
-    backtest = BacktestRunner(price_data, SMCOrderblock, commission=.002, margin=0.02,
-                              cash=5000, exclusive_orders=True, trade_on_close=True)
+    # ohlc_generator = random_ohlc_data(price_data)
+    # price_data = next(ohlc_generator)
+    # price_data = price_data.iloc[:-00]
+    backtest = BacktestRunner(price_data, SMCOrderblock, commission=.002, margin=0.002,
+                              cash=5000, exclusive_orders=False, trade_on_close=True)
 
     backtest.run()

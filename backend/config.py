@@ -1,8 +1,8 @@
 # contains settings and common lists of assets to trade
 
 # basic account/environment details
-accountID = '<insert-account_id>'
-token = '<insert-account_token>'
+accountID = '101-001-30261758-003'
+token = '0ccae327deac778a746734cd6b40a44d-53cf8baecf3b23838ae7cceae5105e5d'
 env = 'practice'  # change this to 'live' when you're ready
 
 # major portfolios

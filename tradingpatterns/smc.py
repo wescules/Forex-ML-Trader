@@ -7,6 +7,11 @@ from datetime import datetime
 
 # Docs: https://github.com/joshyattridge/smart-money-concepts/blob/master/README.md
 
+# This was the original libary but its way out dated with shitty code and the original
+# author doesnt care about it. This is the corrected code that can be used in live trading
+# The original code cheats by looking a few candles into the future in the backtesting data,
+# so it cannot be used in livetrading.
+
 
 def inputvalidator(input_="ohlc"):
     def dfcheck(func):

@@ -50,7 +50,7 @@ class BacktestRunner():
 
 
 if __name__ == "__main__":
-    price_data = pd.read_csv('history/EUR_USD_M15.csv',
+    price_data = pd.read_csv('history/EUR_USD_H1.csv',
                              index_col=0, header=0, parse_dates=True)
     price_data.rename(columns={'time': ''}, inplace=True)
     price_data = price_data.iloc[:, :5]

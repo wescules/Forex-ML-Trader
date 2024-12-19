@@ -20,7 +20,7 @@ class BacktestRunner():
     def __init__(self, price_data, strategy, margin: float = 1, commission: float = 0.002, cash: float = 10000,
                  exclusive_orders: bool = True, trade_on_close: bool = True, filename: str = None):
         self.bt = Backtest(data=price_data, strategy=strategy, commission=commission, margin=margin,
-                           cash=cash, exclusive_orders=exclusive_orders, trade_on_close=trade_on_close)
+                           cash=cash, exclusive_orders=exclusive_orders, trade_on_close=trade_on_close, filename=filename)
         self.strategy = strategy
         self.filename = filename
 
@@ -60,12 +60,12 @@ def run_multiple_timeframes(currency_pair, timeframes):
         
         plotting_filename = '_' + currency_pair + '_' + timeframe
 
-        backtest = BacktestRunner(price_data, SMCOrderblock, commission=.002, margin=0.002,
+        backtest = BacktestRunner(price_data, EconomicEvent, commission=.002, margin=0.002,
                                   cash=5000, exclusive_orders=False, trade_on_close=True, filename=plotting_filename)
 
         backtest.run()
 
 
 if __name__ == "__main__":
-    # run_multiple_timeframes('EUR_USD', WINDOWS)
-    run_multiple_timeframes('EUR_USD', ['M30', 'H1', "H4"])
+    # run_multiple_timeframes('AUD_USD', ['M15', 'M30', 'H1', 'H4', 'D'])
+    run_multiple_timeframes('EUR_USD', ['M30', "H4"])

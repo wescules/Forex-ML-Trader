@@ -15,3 +15,4 @@ from .CutomStrat import CustomStrat
 from .DoubleSuperTrend import DoubleSuperTrend
 from .SMCOrderblock import SMCOrderblock
 from .SMCFairValueGap import SMCFairValueGap
+from .EconomicEvent import EconomicEvent
